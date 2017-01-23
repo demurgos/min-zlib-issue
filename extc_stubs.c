@@ -1,20 +1,35 @@
 #include <caml/alloc.h>
 #include <caml/callback.h>
+#include <caml/custom.h>
 #include <caml/memory.h>
 #include <caml/mlvalues.h>
 #include <caml/fail.h>
 #include <zlib.h>
 #include <stdio.h>
 
+#define ZStreamPointer_val(v) (*((z_streamp *) Data_custom_val(v)))
+
+/**
+ * Free the pointer contained in the supplied caml value.
+ */
+void haxe_free_z_stream(value camlZStream) {
+  free(ZStreamPointer_val(camlZStream));
+  ZStreamPointer_val(camlZStream) = NULL;
+}
+
+static struct custom_operations haxe_z_stream_ops = {
+  "z_stream_ops", &haxe_free_z_stream, NULL, NULL, NULL, NULL
+};
+
 value zlib_new_stream() {
-    value z = alloc((sizeof(z_stream) + sizeof(value) - 1) / sizeof(value), Abstract_tag);
-    z_stream *s = (z_streamp)(z);
-    s->zalloc = NULL;
-    s->zfree = NULL;
-    s->opaque = NULL;
-    s->next_in = NULL;
-    s->next_out = NULL;
-    return z;
+    value camlZStream = caml_alloc_custom(&haxe_z_stream_ops, sizeof(z_streamp), 0, 1);
+    ZStreamPointer_val(camlZStream) = malloc(sizeof(z_stream));
+    ZStreamPointer_val(camlZStream)->zalloc = NULL;
+    ZStreamPointer_val(camlZStream)->zfree = NULL;
+    ZStreamPointer_val(camlZStream)->opaque = NULL;
+    ZStreamPointer_val(camlZStream)->next_in = NULL;
+    ZStreamPointer_val(camlZStream)->next_out = NULL;
+    return camlZStream;
 }
 
 CAMLprim value zlib_deflate_init2(value lvl, value wbits) {
@@ -24,7 +39,7 @@ CAMLprim value zlib_deflate_init2(value lvl, value wbits) {
     printf("zlib_deflate_init2: lvl: %i\n", cLvl);
     printf("zlib_deflate_init2: wbits: %i\n", cWbits);
     value z = zlib_new_stream();
-    z_streamp zPtr = (z_streamp)(z);
+    z_streamp zPtr = ZStreamPointer_val(z);
     printf("zlib_deflate_init2: (z_streamp)(z): %p\n", zPtr);
     int deflateInit2Result = deflateInit2(zPtr, cLvl, Z_DEFLATED, cWbits, 8, Z_DEFAULT_STRATEGY);
     if(deflateInit2Result != Z_OK) {
@@ -47,7 +62,7 @@ CAMLprim value zlib_deflate_init2(value lvl, value wbits) {
 
 CAMLprim value zlib_deflate(value zv, value src, value spos, value slen, value dst, value dpos, value dlen, value flush) {
     printf("zlib_deflate\n");
-    z_streamp z = (z_streamp)(zv); // z_stream pointer
+    z_streamp z = ZStreamPointer_val(zv); // z_stream pointer
     char * cSrc = String_val(src);
     int cSpos = Int_val(spos);
     int cSlen = Int_val(slen);
@@ -116,7 +131,9 @@ CAMLprim value zlib_deflate(value zv, value src, value spos, value slen, value d
 
 CAMLprim value zlib_deflate_end(value zv) {
     printf("zlib_deflate_end\n");
-    if(deflateEnd((z_streamp)(zv)) != Z_OK) {
+    z_streamp zPtr = ZStreamPointer_val(zv);
+    printf("zlib_deflate: (z_streamp)(zv): %p\n", zPtr);
+    if(deflateEnd(zPtr) != Z_OK) {
         failwith("zlib_deflate_end");
     }
     return Val_unit;
