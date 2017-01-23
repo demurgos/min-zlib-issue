@@ -15,7 +15,7 @@ type zresult = {
 }
 
 external zlib_deflate_init2 : int -> int -> zstream = "zlib_deflate_init2"
-external zlib_deflate : zstream -> src:string -> spos:int -> slen:int -> dst:string -> dpos:int -> dlen:int -> zflush -> zresult = "zlib_deflate_bytecode" "zlib_deflate"
+external zlib_deflate : zstream -> src:bytes -> spos:int -> slen:int -> dst:bytes -> dpos:int -> dlen:int -> zflush -> zresult = "zlib_deflate_bytecode" "zlib_deflate"
 external zlib_deflate_end : zstream -> unit = "zlib_deflate_end"
 
 let output_zip ?(bufsize=65536) ?(level=9) ch =
@@ -25,9 +25,9 @@ let output_zip ?(bufsize=65536) ?(level=9) ch =
     let p = ref 0 in
     let rec flush finish =
         let r = zlib_deflate z out 0 !p tmp_out 0 bufsize (if finish then Z_FINISH else Z_SYNC_FLUSH) in
-        ignore(IO.really_output ch tmp_out 0 r.z_wrote);
+        ignore(IO.really_output ch (Bytes.to_string tmp_out) 0 r.z_wrote);
         let remain = !p - r.z_read in
-        String.blit out r.z_read out 0 remain;
+        Bytes.blit out r.z_read out 0 remain;
         p := remain;
         if finish && not r.z_finish then flush true
     in
@@ -47,7 +47,7 @@ let output_zip ?(bufsize=65536) ?(level=9) ch =
             Bytes.blit str pos out !p b;
             p := !p + b;
             flush false;
-            b + output str (pos + b) (len - b);
+            b + output (Bytes.to_string str) (pos + b) (len - b);
         end;
     in
     let close() =

@@ -53,7 +53,7 @@ let close_out o =
 let output_channel ch =
     {
         out_write = (fun c -> output_char ch c);
-        out_output = (fun s p l -> Pervasives.output ch s p l; l);
+        out_output = (fun s p l -> Pervasives.output ch (Bytes.of_string s) p l; l);
         out_close = (fun () -> Pervasives.close_out ch);
         out_flush = (fun () -> Pervasives.flush ch);
     }
