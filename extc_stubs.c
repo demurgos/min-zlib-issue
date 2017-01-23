@@ -7,7 +7,7 @@
 #include <stdio.h>
 
 value zlib_new_stream() {
-    value z = alloc((sizeof(z_stream) + sizeof(value) - 1) / sizeof(value),Abstract_tag);
+    value z = alloc((sizeof(z_stream) + sizeof(value) - 1) / sizeof(value), Abstract_tag);
     z_stream *s = (z_streamp)(z);
     s->zalloc = NULL;
     s->zfree = NULL;
@@ -18,8 +18,15 @@ value zlib_new_stream() {
 }
 
 CAMLprim value zlib_deflate_init2(value lvl, value wbits) {
+    printf("zlib_deflate_init2\n");
+    int cLvl = Int_val(lvl);
+    int cWbits = Int_val(wbits);
+    printf("zlib_deflate_init2: lvl: %i\n", cLvl);
+    printf("zlib_deflate_init2: wbits: %i\n", cWbits);
     value z = zlib_new_stream();
-    int deflateInit2Result = deflateInit2((z_streamp)(z), Int_val(lvl), Z_DEFLATED, Int_val(wbits), 8, Z_DEFAULT_STRATEGY);
+    z_streamp zPtr = (z_streamp)(z);
+    printf("zlib_deflate_init2: (z_streamp)(z): %p\n", zPtr);
+    int deflateInit2Result = deflateInit2(zPtr, cLvl, Z_DEFLATED, cWbits, 8, Z_DEFAULT_STRATEGY);
     if(deflateInit2Result != Z_OK) {
         switch (deflateInit2Result) {
             case Z_MEM_ERROR:
@@ -39,15 +46,30 @@ CAMLprim value zlib_deflate_init2(value lvl, value wbits) {
 }
 
 CAMLprim value zlib_deflate(value zv, value src, value spos, value slen, value dst, value dpos, value dlen, value flush) {
-    z_streamp z = (z_streamp)(zv);
+    printf("zlib_deflate\n");
+    z_streamp z = (z_streamp)(zv); // z_stream pointer
+    char * cSrc = String_val(src);
+    int cSpos = Int_val(spos);
+    int cSlen = Int_val(slen);
+    char * cDst = String_val(dst);
+    int cDpos = Int_val(dpos);
+    int cDlen = Int_val(dlen);
+    int cFlush = Int_val(flush);
+    printf("zlib_deflate: (z_streamp)(zv): %p\n", z);
+    printf("zlib_deflate: spos: %i\n", cSpos);
+    printf("zlib_deflate: slen: %i\n", cSlen);
+    printf("zlib_deflate: dpos: %i\n", cDpos);
+    printf("zlib_deflate: dlen: %i\n", cDlen);
+    printf("zlib_deflate: flush: %i\n", cFlush);
+
     value res;
 
-    z->next_in = (Bytef*)(String_val(src) + Int_val(spos));
-    z->next_out = (Bytef*)(String_val(dst) + Int_val(dpos));
-    z->avail_in = Int_val(slen);
-    z->avail_out = Int_val(dlen);
+    z->next_in = (Bytef*)(cSrc + cSpos);
+    z->next_out = (Bytef*)(cDst + cDpos);
+    z->avail_in = cSlen;
+    z->avail_out = cDlen;
 
-    int deflateResult = deflate(z, Int_val(flush));
+    int deflateResult = deflate(z, cFlush);
     // Possible return codes:
     // https://github.com/madler/zlib/blob/cacf7f1d4e3d44d871b605da3b647f07d718623f/zlib.h#L177
     if(deflateResult != Z_OK) {
@@ -93,7 +115,8 @@ CAMLprim value zlib_deflate(value zv, value src, value spos, value slen, value d
 }
 
 CAMLprim value zlib_deflate_end(value zv) {
-    if(deflateEnd((z_streamp)(zv)) != 0) {
+    printf("zlib_deflate_end\n");
+    if(deflateEnd((z_streamp)(zv)) != Z_OK) {
         failwith("zlib_deflate_end");
     }
     return Val_unit;
