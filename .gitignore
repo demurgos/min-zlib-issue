@@ -1,0 +1,12 @@
+*.cmi
+*.cmx
+*.o
+*.a
+*.cmo
+*.cmxa
+*.out
+*.bug
+main
+
+.idea/
+*.iml
