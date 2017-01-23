@@ -80,7 +80,7 @@ let () =
         );
     *)
 
-    print_endline ("length:" ^ string_of_int (String.length def_data));
+    print_endline "Calling zlib_deflate...";
     IO.nwrite def_ch def_data;
     IO.close_out def_ch;
     IO.close_out ch;
