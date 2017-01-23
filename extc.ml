@@ -20,8 +20,8 @@ external zlib_deflate_end : zstream -> unit = "zlib_deflate_end"
 
 let output_zip ?(bufsize=65536) ?(level=9) ch =
     let z = zlib_deflate_init2 level 15 in
-    let out = String.create bufsize in
-    let tmp_out = String.create bufsize in
+    let out = Bytes.create bufsize in
+    let tmp_out = Bytes.create bufsize in
     let p = ref 0 in
     let rec flush finish =
         let r = zlib_deflate z out 0 !p tmp_out 0 bufsize (if finish then Z_FINISH else Z_SYNC_FLUSH) in
@@ -33,17 +33,18 @@ let output_zip ?(bufsize=65536) ?(level=9) ch =
     in
     let write c =
         if !p = bufsize then flush false;
-        String.unsafe_set out !p c;
+        Bytes.unsafe_set out !p c;
         incr p
     in
     let rec output str pos len =
+        let str = Bytes.of_string str in
         let b = bufsize - !p in
         if len <= b then begin
-            String.blit str pos out !p len;
+            Bytes.blit str pos out !p len;
             p := !p + len;
             len
         end else begin
-            String.blit str pos out !p b;
+            Bytes.blit str pos out !p b;
             p := !p + b;
             flush false;
             b + output str (pos + b) (len - b);
